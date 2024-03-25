@@ -38029,7 +38029,7 @@ void main() {
   var require_pano = __commonJS({
     "pano.coffee"(exports) {
       (async function() {
-        var $, Reflector, THREE, acoustics, acoustics_only, beat_interval, ctx, drum_sample, init_listener, input, last_beat_time, load_sample, loop_on, mediaDevices, move_listener, play_drum, play_sample, reflectors, speed_of_sound;
+        var $, Reflector, THREE, acoustics, acoustics_only, beat_interval, ctx, drum_sample, init_listener, input, last_beat_time, load_sample, loop_on, mediaDevices, move_listener, play_drum, play_sample, reflectors, singing_sample, speed_of_sound;
         THREE = require_three();
         $ = require_jquery();
         mediaDevices = navigator.mediaDevices;
@@ -38130,6 +38130,7 @@ void main() {
           return play_drum(drum_sample);
         }, beat_interval * 1e3);
         drum_sample = await load_sample("shaman_trimmed.wav");
+        singing_sample = await load_sample("singing.wav");
         $(document).one("keydown mousedown pointerdown pointerup touchend", async function() {
           var mic, mic_dev, mic_raw;
           ctx.resume();
@@ -38169,7 +38170,10 @@ void main() {
             }
           }
           if (ev.key === "l") {
-            return loop_on = !loop_on;
+            loop_on = !loop_on;
+          }
+          if (ev.key === "n") {
+            return play_sample(singing_sample);
           }
         });
         let camera, scene, renderer;

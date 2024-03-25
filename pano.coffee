@@ -93,6 +93,7 @@ setInterval (->
 	beat_interval*1000
 
 drum_sample = await load_sample "shaman_trimmed.wav"
+singing_sample = await load_sample "singing.wav"
 
 $(document).one "keydown mousedown pointerdown pointerup touchend", ->
 	ctx.resume()
@@ -114,7 +115,6 @@ $(window).on "message", ({originalEvent}) ->
 		when "slide:stop"
 			ctx.suspend()
 
-
 $(document).on "keydown", (ev) ->
 	ev = ev.originalEvent
 	return if ev.repeat
@@ -129,6 +129,9 @@ $(document).on "keydown", (ev) ->
 	
 	if ev.key == "l"
 		loop_on = not loop_on
+
+	if ev.key == "n"
+		play_sample singing_sample
 
 ```
 let camera, scene, renderer;
