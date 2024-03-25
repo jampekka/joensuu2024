@@ -1,5 +1,7 @@
 THREE = require "three"
 $ = require 'jquery'
+mediaDevices = navigator.mediaDevices
+
 
 speed_of_sound = 331 # 0⁰C
 class Reflector
@@ -35,17 +37,21 @@ class Reflector
 		@panner.pan.linearRampToValueAtTime @panning, at
 
 
-ctx = new AudioContext()
+ctx = new AudioContext latency_hint: "interactive"
 
 input = new GainNode(ctx)
 input.connect ctx.destination
 
-acoustics = new GainNode(ctx)
+acoustics = new GainNode ctx
+acoustics_only = new GainNode(ctx)
 acoustics.connect ctx.destination
+
+
 init_listener = 40
 reflectors = [0, 120].map (position) ->
 	r = new Reflector(ctx, {listener: init_listener, position})
 	input.connect r.input
+	acoustics_only.connect r.input
 	r.output.connect acoustics
 	return r
 
@@ -93,6 +99,17 @@ drum_sample = await load_sample "shaman_trimmed.wav"
 
 $(document).one "keydown mousedown pointerdown pointerup touchend", ->
 	ctx.resume()
+	mic_dev = await mediaDevices.getUserMedia
+		audio:
+			echoCancellation: false
+			noiseSupression: false
+			autoGainControl: false
+			
+	mic_raw = ctx.createMediaStreamSource mic_dev
+	mic = ctx.createChannelMerger 1
+	mic_raw.connect mic
+	mic.connect acoustics_only
+
 
 $(document).on "keydown", (ev) ->
 	ev = ev.originalEvent

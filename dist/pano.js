@@ -38029,9 +38029,10 @@ void main() {
   var require_pano = __commonJS({
     "pano.coffee"(exports) {
       (async function() {
-        var $, Reflector, THREE, acoustics, beat_interval, ctx, drum_sample, init_listener, input, last_beat_time, load_sample, loop_on, move_listener, play_drum, play_sample, reflectors, speed_of_sound;
+        var $, Reflector, THREE, acoustics, acoustics_only, beat_interval, ctx, drum_sample, init_listener, input, last_beat_time, load_sample, loop_on, mediaDevices, move_listener, play_drum, play_sample, reflectors, speed_of_sound;
         THREE = require_three();
         $ = require_jquery();
+        mediaDevices = navigator.mediaDevices;
         speed_of_sound = 331;
         Reflector = class Reflector {
           constructor(ctx1, _state) {
@@ -38064,10 +38065,13 @@ void main() {
             return this.panner.pan.linearRampToValueAtTime(this.panning, at);
           }
         };
-        ctx = new AudioContext();
+        ctx = new AudioContext({
+          latency_hint: "interactive"
+        });
         input = new GainNode(ctx);
         input.connect(ctx.destination);
         acoustics = new GainNode(ctx);
+        acoustics_only = new GainNode(ctx);
         acoustics.connect(ctx.destination);
         init_listener = 40;
         reflectors = [0, 120].map(function(position) {
@@ -38077,6 +38081,7 @@ void main() {
             position
           });
           input.connect(r.input);
+          acoustics_only.connect(r.input);
           r.output.connect(acoustics);
           return r;
         });
@@ -38125,8 +38130,16 @@ void main() {
           return play_drum(drum_sample);
         }, beat_interval * 1e3);
         drum_sample = await load_sample("shaman_trimmed.wav");
-        $(document).one("keydown mousedown pointerdown pointerup touchend", function() {
-          return ctx.resume();
+        $(document).one("keydown mousedown pointerdown pointerup touchend", async function() {
+          var mic, mic_dev, mic_raw;
+          ctx.resume();
+          mic_dev = await mediaDevices.getUserMedia({
+            audio: true
+          });
+          mic_raw = ctx.createMediaStreamSource(mic_dev);
+          mic = ctx.createChannelMerger(1);
+          mic_raw.connect(mic);
+          return mic.connect(acoustics_only);
         });
         $(document).on("keydown", function(ev) {
           ev = ev.originalEvent;
