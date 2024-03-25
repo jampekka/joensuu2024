@@ -92,9 +92,6 @@ setInterval (->
 	),
 	beat_interval*1000
 
-
-
-
 drum_sample = await load_sample "shaman_trimmed.wav"
 
 $(document).one "keydown mousedown pointerdown pointerup touchend", ->
@@ -109,6 +106,13 @@ $(document).one "keydown mousedown pointerdown pointerup touchend", ->
 	mic = ctx.createChannelMerger 1
 	mic_raw.connect mic
 	mic.connect acoustics_only
+
+$(window).on "message", ({originalEvent}) ->
+	switch originalEvent.data
+		when "slide:start"
+			ctx.resume()
+		when "slide:stop"
+			ctx.suspend()
 
 
 $(document).on "keydown", (ev) ->

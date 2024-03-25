@@ -38145,6 +38145,14 @@ void main() {
           mic_raw.connect(mic);
           return mic.connect(acoustics_only);
         });
+        $(window).on("message", function({ originalEvent }) {
+          switch (originalEvent.data) {
+            case "slide:start":
+              return ctx.resume();
+            case "slide:stop":
+              return ctx.suspend();
+          }
+        });
         $(document).on("keydown", function(ev) {
           ev = ev.originalEvent;
           if (ev.repeat) {
