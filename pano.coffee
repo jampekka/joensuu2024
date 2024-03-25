@@ -1,7 +1,25 @@
 THREE = require "three"
 $ = require 'jquery'
-mediaDevices = navigator.mediaDevices
 
+# Hack to trick esbuild to not try to bundle up the node module.
+# Esbuild seems to pass through non-constant-string requires.
+# There's probably a nicer way to do this.
+require_node = (module) -> require module
+USE_NODE = process.__nwjs
+if USE_NODE
+	
+	{AudioContext, GainNode, mediaDevices} = require_node 'node-web-audio-api'
+	fs = require_node 'fs'
+	
+	win = nw.Window.get()
+	nw.App.registerGlobalHotKey new nw.Shortcut
+		key: "F11"
+		active: -> win.toggleFullscreen()
+	nw.App.registerGlobalHotKey new nw.Shortcut
+		key: "ctrl+r"
+		active: -> win.reloadIgnoringCache()
+else
+	mediaDevices = navigator.mediaDevices
 
 speed_of_sound = 331 # 0⁰C
 class Reflector
@@ -62,8 +80,11 @@ move_listener = (position) ->
 move_listener init_listener
 
 load_sample = (url) ->
-	buf = await fetch url
-	buf = await buf.arrayBuffer()
+	if USE_NODE
+		buf = fs.readFileSync(url).buffer
+	else
+		buf = await fetch url
+		buf = await buf.arrayBuffer()
 	buf = await ctx.decodeAudioData(buf)
 	buf.channelInterpretation = "speakers"
 	return buf
@@ -93,6 +114,7 @@ setInterval (->
 	beat_interval*1000
 
 drum_sample = await load_sample "shaman_trimmed.wav"
+#drum_sample = await load_sample "snare_trimmed.wav"
 singing_sample = await load_sample "singing.wav"
 
 $(document).one "keydown mousedown pointerdown pointerup touchend", ->
@@ -102,7 +124,7 @@ $(document).one "keydown mousedown pointerdown pointerup touchend", ->
 			echoCancellation: false
 			noiseSupression: false
 			autoGainControl: false
-			
+	
 	mic_raw = ctx.createMediaStreamSource mic_dev
 	mic = ctx.createChannelMerger 1
 	mic_raw.connect mic

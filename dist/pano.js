@@ -1,6 +1,13 @@
 (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __commonJS = (cb, mod) => function __require() {
+  var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+    get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+  }) : x)(function(x) {
+    if (typeof require !== "undefined")
+      return require.apply(this, arguments);
+    throw Error('Dynamic require of "' + x + '" is not supported');
+  });
+  var __commonJS = (cb, mod) => function __require2() {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
 
@@ -27935,7 +27942,7 @@ void main() {
         }
       };
       var _context;
-      var AudioContext2 = class {
+      var AudioContext = class {
         static getContext() {
           if (_context === void 0) {
             _context = new (window.AudioContext || window.webkitAudioContext)();
@@ -27960,7 +27967,7 @@ void main() {
           loader.load(url, function(buffer) {
             try {
               const bufferCopy = buffer.slice(0);
-              const context = AudioContext2.getContext();
+              const context = AudioContext.getContext();
               context.decodeAudioData(bufferCopy, function(audioBuffer) {
                 onLoad(audioBuffer);
               }).catch(handleError);
@@ -28084,7 +28091,7 @@ void main() {
         constructor() {
           super();
           this.type = "AudioListener";
-          this.context = AudioContext2.getContext();
+          this.context = AudioContext.getContext();
           this.gain = this.context.createGain();
           this.gain.connect(this.context.destination);
           this.filter = null;
@@ -31282,7 +31289,7 @@ void main() {
       exports.AttachedBindMode = AttachedBindMode;
       exports.Audio = Audio;
       exports.AudioAnalyser = AudioAnalyser;
-      exports.AudioContext = AudioContext2;
+      exports.AudioContext = AudioContext;
       exports.AudioListener = AudioListener;
       exports.AudioLoader = AudioLoader;
       exports.AxesHelper = AxesHelper;
@@ -33715,14 +33722,14 @@ void main() {
                         }
                         (special || deferred2.resolveWith)(that, args);
                       }
-                    }, process = special ? mightThrow : function() {
+                    }, process2 = special ? mightThrow : function() {
                       try {
                         mightThrow();
                       } catch (e) {
                         if (jQuery.Deferred.exceptionHook) {
                           jQuery.Deferred.exceptionHook(
                             e,
-                            process.error
+                            process2.error
                           );
                         }
                         if (depth + 1 >= maxDepth) {
@@ -33735,14 +33742,14 @@ void main() {
                       }
                     };
                     if (depth) {
-                      process();
+                      process2();
                     } else {
                       if (jQuery.Deferred.getErrorHook) {
-                        process.error = jQuery.Deferred.getErrorHook();
+                        process2.error = jQuery.Deferred.getErrorHook();
                       } else if (jQuery.Deferred.getStackHook) {
-                        process.error = jQuery.Deferred.getStackHook();
+                        process2.error = jQuery.Deferred.getStackHook();
                       }
-                      window2.setTimeout(process);
+                      window2.setTimeout(process2);
                     }
                   };
                 }
@@ -38029,10 +38036,32 @@ void main() {
   var require_pano = __commonJS({
     "pano.coffee"(exports) {
       (async function() {
-        var $, Reflector, THREE, acoustics, acoustics_only, beat_interval, ctx, drum_sample, init_listener, input, last_beat_time, load_sample, loop_on, mediaDevices, move_listener, play_drum, play_sample, reflectors, singing_sample, speed_of_sound;
+        var $, AudioContext, GainNode, Reflector, THREE, USE_NODE, acoustics, acoustics_only, beat_interval, ctx, drum_sample, fs, init_listener, input, last_beat_time, load_sample, loop_on, mediaDevices, move_listener, play_drum, play_sample, reflectors, require_node, singing_sample, speed_of_sound, win;
         THREE = require_three();
         $ = require_jquery();
-        mediaDevices = navigator.mediaDevices;
+        require_node = function(module2) {
+          return __require(module2);
+        };
+        USE_NODE = process.__nwjs;
+        if (USE_NODE) {
+          ({ AudioContext, GainNode, mediaDevices } = require_node("node-web-audio-api"));
+          fs = require_node("fs");
+          win = nw.Window.get();
+          nw.App.registerGlobalHotKey(new nw.Shortcut({
+            key: "F11",
+            active: function() {
+              return win.toggleFullscreen();
+            }
+          }));
+          nw.App.registerGlobalHotKey(new nw.Shortcut({
+            key: "ctrl+r",
+            active: function() {
+              return win.reloadIgnoringCache();
+            }
+          }));
+        } else {
+          mediaDevices = navigator.mediaDevices;
+        }
         speed_of_sound = 331;
         Reflector = class Reflector {
           constructor(ctx1, _state) {
@@ -38098,8 +38127,12 @@ void main() {
         move_listener(init_listener);
         load_sample = async function(url) {
           var buf;
-          buf = await fetch(url);
-          buf = await buf.arrayBuffer();
+          if (USE_NODE) {
+            buf = fs.readFileSync(url).buffer;
+          } else {
+            buf = await fetch(url);
+            buf = await buf.arrayBuffer();
+          }
           buf = await ctx.decodeAudioData(buf);
           buf.channelInterpretation = "speakers";
           return buf;

@@ -3,7 +3,7 @@ esbuild = require 'esbuild'
 
 context = () ->
     ctx = await esbuild.context
-        entryPoints: ['pano.coffee']
+        entryPoints: ['pano.coffee', 'prese.coffee']
         outdir: 'dist'
         sourcemap: true
         bundle: true
