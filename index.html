@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>reveal.js</title>
+
+		<link rel="stylesheet" href="reveal.js/dist/reset.css">
+		<link rel="stylesheet" href="reveal.js/dist/reveal.css">
+		<link rel="stylesheet" href="reveal.js/dist/theme/blood.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="reveal.js/plugin/highlight/monokai.css">
+<style type="text/css">
+:root {
+	--r-link-color: hsl(13 100% 99% / 1);
+	--r-heading-color: var(--r-link-color);
+	--r-main-color: var(--r-link-color);
+	
+	--r-heading-text-shadow: 1px 1px 1px #222;
+	--r-heading1-text-shadow: var(--r-heading-text-shadow);
+}
+
+.caption {
+     top:0px;
+     right:0px;
+     position:absolute;
+}
+
+.reveal p {
+	text-shadow: var(--r-heading-text-shadow);
+	font-weight: bold;
+}
+
+.footnote {
+	font-size: 12pt;
+	bottom: 0;
+	left: 0;
+}
+
+.caption {
+	display: none;
+}
+
+</style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section data-background-image=painting_faint.jpg>
+					<h2>Rythmic effects of natural acoustics</h2>
+					<h3>Jami Pekkanen</h3>
+					<p>SacredSites project<br>Cognitive Science<br>University of Helsinki</p>
+					<p class="footnote">Image by Ismo Luukkonen www.ismoluukkonen.net</p>
+				</section>
+				<section data-background-image=painting.jpg><p class="caption">Image by Ismo Luukkonen www.ismoluukkonen.net</p></section>
+
+				</section>
+				<section data-background-image=mapfigs/map_zoom_out.png></section>
+				<section data-background-image=mapfigs/siliavuori_lake.png></section>
+				<section data-background-image=mapfigs/siliavuori_zoom.png></section>
+				<section data-background-video="drone.lowres.mp4" data-preload data-background-video-muted></section>
+				<!-- <section data-background-image=painting.jpg><p class="caption">By Ismo Luukkonen www.ismoluukkonen.net</p></section>
+				<section data-background-image=painting_faint.jpg></section>-->
+				<section data-background-iframe="pano.html" data-background-interactive data-preload>
+				</section>
+			</div>
+		</div>
+
+		<script src="reveal.js/dist/reveal.js"></script>
+		<script src="reveal.js/plugin/notes/notes.js"></script>
+		<script src="reveal.js/plugin/markdown/markdown.js"></script>
+		<script src="reveal.js/plugin/highlight/highlight.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				hash: true,
+				transition: "fade",
+				transitionSpeed: "slow",
+				progress: false,
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+	</body>
+</html>
