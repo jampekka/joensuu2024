@@ -24,7 +24,8 @@ class Reflector
 		rel_pos = position - listener
 		length = Math.abs(rel_pos)*2
 		# Hacky supergain
-		@gain = 500/(1 + length)**2
+		@gain = 10/(1 + length)
+		@gain = Math.min 0.2, @gain
 		@delay = length/speed_of_sound
 		@panning = Math.sign(rel_pos)
 		at = @ctx.currentTime + transition
@@ -41,11 +42,18 @@ input.connect ctx.destination
 
 acoustics = new GainNode(ctx)
 acoustics.connect ctx.destination
+init_listener = 40
 reflectors = [0, 120].map (position) ->
-	r = new Reflector(ctx, {listener: 40, position})
+	r = new Reflector(ctx, {listener: init_listener, position})
 	input.connect r.input
 	r.output.connect acoustics
 	return r
+
+move_listener = (position) ->
+	# TODO: Reactive
+	$("#distance_value").text position.toFixed 1
+	r.set_listener position for r in reflectors
+move_listener init_listener
 
 load_sample = (url) ->
 	buf = await fetch url
@@ -60,20 +68,25 @@ play_sample = (sample, dst=input) ->
 	src.connect dst
 	src.start()
 
-drum_loop = new GainNode ctx
-drum_loop.gain.value = 1
-drum_loop.connect input
+last_beat_time = null
+play_drum = (sample, dst=input) ->
+	play_sample sample, dst
+	time = performance.now()/1000
+	dt = time - last_beat_time
+	last_beat_time = time
+	bpm = 1/dt*60
+	$("#bpm_value").html Math.round bpm
 
 beat_interval = reflectors[0].delay*3
 loop_on = false
 setInterval (->
 	return if not loop_on
-	play_sample(drum_sample, drum_loop)),
+	play_drum drum_sample
+	
+	),
 	beat_interval*1000
 
-move_listener = (position) ->
-	console.log "Listener at", position
-	r.set_listener position for r in reflectors
+
 
 
 drum_sample = await load_sample "shaman_trimmed.wav"
@@ -85,7 +98,7 @@ $(document).on "keydown", (ev) ->
 	ev = ev.originalEvent
 	return if ev.repeat
 	if ev.key == " "
-		play_sample drum_sample
+		play_drum drum_sample
 	
 	if ev.key == "m"
 		if acoustics.gain.value == 0

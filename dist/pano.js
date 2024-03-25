@@ -38029,7 +38029,7 @@ void main() {
   var require_pano = __commonJS({
     "pano.coffee"(exports) {
       (async function() {
-        var $, Reflector, THREE, acoustics, beat_interval, ctx, drum_loop, drum_sample, input, load_sample, loop_on, move_listener, play_sample, reflectors, speed_of_sound;
+        var $, Reflector, THREE, acoustics, beat_interval, ctx, drum_sample, init_listener, input, last_beat_time, load_sample, loop_on, move_listener, play_drum, play_sample, reflectors, speed_of_sound;
         THREE = require_three();
         $ = require_jquery();
         speed_of_sound = 331;
@@ -38054,7 +38054,8 @@ void main() {
             ({ position, listener, decay } = this._state);
             rel_pos = position - listener;
             length = Math.abs(rel_pos) * 2;
-            this.gain = 500 / (1 + length) ** 2;
+            this.gain = 10 / (1 + length);
+            this.gain = Math.min(0.2, this.gain);
             this.delay = length / speed_of_sound;
             this.panning = Math.sign(rel_pos);
             at = this.ctx.currentTime + transition;
@@ -38068,16 +38069,28 @@ void main() {
         input.connect(ctx.destination);
         acoustics = new GainNode(ctx);
         acoustics.connect(ctx.destination);
+        init_listener = 40;
         reflectors = [0, 120].map(function(position) {
           var r;
           r = new Reflector(ctx, {
-            listener: 40,
+            listener: init_listener,
             position
           });
           input.connect(r.input);
           r.output.connect(acoustics);
           return r;
         });
+        move_listener = function(position) {
+          var i, len, r, results;
+          $("#distance_value").text(position.toFixed(1));
+          results = [];
+          for (i = 0, len = reflectors.length; i < len; i++) {
+            r = reflectors[i];
+            results.push(r.set_listener(position));
+          }
+          return results;
+        };
+        move_listener(init_listener);
         load_sample = async function(url) {
           var buf;
           buf = await fetch(url);
@@ -38093,27 +38106,24 @@ void main() {
           src.connect(dst);
           return src.start();
         };
-        drum_loop = new GainNode(ctx);
-        drum_loop.gain.value = 1;
-        drum_loop.connect(input);
+        last_beat_time = null;
+        play_drum = function(sample, dst = input) {
+          var bpm, dt, time2;
+          play_sample(sample, dst);
+          time2 = performance.now() / 1e3;
+          dt = time2 - last_beat_time;
+          last_beat_time = time2;
+          bpm = 1 / dt * 60;
+          return $("#bpm_value").html(Math.round(bpm));
+        };
         beat_interval = reflectors[0].delay * 3;
         loop_on = false;
         setInterval(function() {
           if (!loop_on) {
             return;
           }
-          return play_sample(drum_sample, drum_loop);
+          return play_drum(drum_sample);
         }, beat_interval * 1e3);
-        move_listener = function(position) {
-          var i, len, r, results;
-          console.log("Listener at", position);
-          results = [];
-          for (i = 0, len = reflectors.length; i < len; i++) {
-            r = reflectors[i];
-            results.push(r.set_listener(position));
-          }
-          return results;
-        };
         drum_sample = await load_sample("shaman_trimmed.wav");
         $(document).one("keydown mousedown pointerdown pointerup touchend", function() {
           return ctx.resume();
@@ -38124,7 +38134,7 @@ void main() {
             return;
           }
           if (ev.key === " ") {
-            play_sample(drum_sample);
+            play_drum(drum_sample);
           }
           if (ev.key === "m") {
             if (acoustics.gain.value === 0) {

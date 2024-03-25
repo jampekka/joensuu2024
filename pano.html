@@ -5,10 +5,38 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" rel="stylesheet" href="three.css">
-	</head>
-	<body>
+		<link type="text/css" rel="stylesheet" href="prese.css">
+<style>
+#distance_container {
+	font-size: 30pt;
+	position: absolute;
+	top: 50%;
+	right: 10%;
+}
 
-		<div id="container"></div>
+#distance_container td {
+	padding: 0.3em;
+}
+
+#distance_container tr td:first-child {
+	text-align: right;
+}
+
+#distance_container tr td:last-child {
+	text-align: left;
+}
+</style>
+	</head>
+	<body class="pano">
+
+		<div id="container">
+			<table id="distance_container">
+				<tr><td id="distance_value"><td> m
+				<tr><td><td>
+				<tr><td id="bpm_value">-<td> BPM
+							<!--<span id="bpm_value"></span> bpm-->
+			</table>
+		</div>
 
 <script src="dist/pano.js"></script>
 	</body>
