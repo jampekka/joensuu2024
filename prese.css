@@ -1,0 +1,36 @@
+:root {
+	--r-link-color: hsl(13 100% 99% / 1);
+	--r-heading-color: var(--r-link-color);
+	--r-main-color: var(--r-link-color);
+	
+	/*--r-heading-text-shadow: 1px 1px 1px #222;*/
+	--r-heading-text-shadow: 2px 2px 8px hsl(13 100% 30% / 1);
+	--r-heading1-text-shadow: var(--r-heading-text-shadow);
+}
+
+.caption {
+     top:0px;
+     right:0px;
+     position:absolute;
+}
+
+.reveal p {
+	text-shadow: var(--r-heading-text-shadow);
+	font-weight: bold;
+}
+
+.footnote {
+	font-size: 12pt;
+	bottom: 0;
+	left: 0;
+}
+
+.caption {
+	display: none;
+}
+
+.pano {
+	color: var(--r-main-color);
+	text-shadow: var(--r-heading-text-shadow);
+	font-weight: bold;
+}
