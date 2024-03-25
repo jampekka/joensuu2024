@@ -38134,7 +38134,11 @@ void main() {
           var mic, mic_dev, mic_raw;
           ctx.resume();
           mic_dev = await mediaDevices.getUserMedia({
-            audio: true
+            audio: {
+              echoCancellation: false,
+              noiseSupression: false,
+              autoGainControl: false
+            }
           });
           mic_raw = ctx.createMediaStreamSource(mic_dev);
           mic = ctx.createChannelMerger(1);
