@@ -1,7 +1,7 @@
 {
   "version": 3,
   "sources": ["../prese.coffee"],
-  "sourcesContent": ["(function() {\n  var win;\n\n  if (nw) {\n    win = nw.Window.get();\n    nw.App.registerGlobalHotKey(new nw.Shortcut({\n      key: \"F11\",\n      active: function() {\n        return win.toggleFullscreen();\n      }\n    }));\n    nw.App.registerGlobalHotKey(new nw.Shortcut({\n      key: \"ctrl+r\",\n      active: function() {\n        return win.reloadIgnoringCache();\n      }\n    }));\n  }\n\n}).call(this);\n"],
-  "mappings": ";;;;;;;AAAA;AAAA;AAAA,OAAC,WAAW;AACV,YAAI;AAEJ,YAAI,IAAI;AACN,gBAAM,GAAG,OAAO,IAAI;AACpB,aAAG,IAAI,qBAAqB,IAAI,GAAG,SAAS;AAAA,YAC1C,KAAK;AAAA,YACL,QAAQ,WAAW;AACjB,qBAAO,IAAI,iBAAiB;AAAA,YAC9B;AAAA,UACF,CAAC,CAAC;AACF,aAAG,IAAI,qBAAqB,IAAI,GAAG,SAAS;AAAA,YAC1C,KAAK;AAAA,YACL,QAAQ,WAAW;AACjB,qBAAO,IAAI,oBAAoB;AAAA,YACjC;AAAA,UACF,CAAC,CAAC;AAAA,QACJ;AAAA,MAEF,GAAG,KAAK,OAAI;AAAA;AAAA;",
+  "sourcesContent": ["(function() {\n  var win;\n\n  if (typeof nw !== 'undefined') {\n    win = nw.Window.get();\n    nw.App.registerGlobalHotKey(new nw.Shortcut({\n      key: \"F11\",\n      active: function() {\n        return win.toggleFullscreen();\n      }\n    }));\n    nw.App.registerGlobalHotKey(new nw.Shortcut({\n      key: \"ctrl+r\",\n      active: function() {\n        return win.reloadIgnoringCache();\n      }\n    }));\n  }\n\n}).call(this);\n"],
+  "mappings": ";;;;;;;AAAA;AAAA;AAAA,OAAC,WAAW;AACV,YAAI;AAEJ,YAAI,OAAO,OAAO,aAAa;AAC7B,gBAAM,GAAG,OAAO,IAAI;AACpB,aAAG,IAAI,qBAAqB,IAAI,GAAG,SAAS;AAAA,YAC1C,KAAK;AAAA,YACL,QAAQ,WAAW;AACjB,qBAAO,IAAI,iBAAiB;AAAA,YAC9B;AAAA,UACF,CAAC,CAAC;AACF,aAAG,IAAI,qBAAqB,IAAI,GAAG,SAAS;AAAA,YAC1C,KAAK;AAAA,YACL,QAAQ,WAAW;AACjB,qBAAO,IAAI,oBAAoB;AAAA,YACjC;AAAA,UACF,CAAC,CAAC;AAAA,QACJ;AAAA,MAEF,GAAG,KAAK,OAAI;AAAA;AAAA;",
   "names": []
 }

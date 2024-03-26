@@ -8,6 +8,10 @@
 	--r-heading1-text-shadow: var(--r-heading-text-shadow);
 }
 
+body {
+	color: var(--r-main-color);
+}
+
 .caption {
      top:0px;
      right:0px;
@@ -29,8 +33,8 @@
 	display: none;
 }
 
-.pano {
+body, li {
 	color: var(--r-main-color);
 	text-shadow: var(--r-heading-text-shadow);
-	font-weight: bold;
+	font-weight: bold !important;
 }

@@ -5,10 +5,10 @@ $ = require 'jquery'
 # Esbuild seems to pass through non-constant-string requires.
 # There's probably a nicer way to do this.
 require_node = (module) -> require module
-USE_NODE = process.__nwjs
+USE_NODE = typeof nw != 'undefined'
 if USE_NODE
-	
-	{AudioContext, GainNode, mediaDevices} = require_node 'node-web-audio-api'
+	waa = require_node 'node-web-audio-api'
+	Object.assign globalThis, waa
 	fs = require_node 'fs'
 	
 	win = nw.Window.get()
@@ -19,7 +19,7 @@ if USE_NODE
 		key: "ctrl+r"
 		active: -> win.reloadIgnoringCache()
 else
-	mediaDevices = navigator.mediaDevices
+	globalThis.mediaDevices = navigator.mediaDevices
 
 speed_of_sound = 331 # 0⁰C
 class Reflector
@@ -44,7 +44,7 @@ class Reflector
 		rel_pos = position - listener
 		length = Math.abs(rel_pos)*2
 		# Hacky supergain
-		@gain = 10/(1 + length)
+		@gain = 20/(1 + length)
 		@gain = Math.min 0.2, @gain
 		@delay = length/speed_of_sound
 		@panning = Math.sign(rel_pos)
@@ -58,11 +58,13 @@ class Reflector
 ctx = new AudioContext latency_hint: "interactive"
 
 input = new GainNode(ctx)
-input.connect ctx.destination
+output = new GainNode(ctx)
+input.connect output
+output.connect ctx.destination
 
 acoustics = new GainNode ctx
 acoustics_only = new GainNode(ctx)
-acoustics.connect ctx.destination
+acoustics.connect output
 
 
 init_listener = 40
@@ -113,9 +115,16 @@ setInterval (->
 	),
 	beat_interval*1000
 
-drum_sample = await load_sample "shaman_trimmed.wav"
-#drum_sample = await load_sample "snare_trimmed.wav"
+shaman_sample = await load_sample "shaman_trimmed.wav"
+snare_sample = await load_sample "snare_trimmed.wav"
+drum_sample = shaman_sample
+
 singing_sample = await load_sample "singing.wav"
+
+analyser = ctx.createAnalyser()
+analyser.fftSize = 1024
+analyser_data = new Float32Array(analyser.fftSize)
+output.connect analyser
 
 $(document).one "keydown mousedown pointerdown pointerup touchend", ->
 	ctx.resume()
@@ -149,6 +158,12 @@ $(document).on "keydown", (ev) ->
 		else
 			acoustics.gain.value = 0
 	
+	if ev.key == ","
+		drum_sample = switch drum_sample
+			when shaman_sample then snare_sample
+			when snare_sample then shaman_sample
+			else shaman_sample
+	
 	if ev.key == "l"
 		loop_on = not loop_on
 
@@ -156,7 +171,7 @@ $(document).on "keydown", (ev) ->
 		play_sample singing_sample
 
 ```
-let camera, scene, renderer;
+let camera, scene, renderer, mesh;
 
 let isUserInteracting = false,
 	onPointerDownMouseX = 0, onPointerDownMouseY = 0,
@@ -167,6 +182,7 @@ lat = 15;
 let time = null;
 let speed_x = 0;
 let speed_z = 0;
+let FOV = 75;
 
 const sphere_radius = 40;
 init();
@@ -176,7 +192,7 @@ function init() {
 
 	const container = document.getElementById( 'container' );
 
-	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
+	camera = new THREE.PerspectiveCamera( FOV, window.innerWidth / window.innerHeight, 1, 1100 );
 
 	scene = new THREE.Scene();
 
@@ -188,7 +204,7 @@ function init() {
 	texture.colorSpace = THREE.SRGBColorSpace;
 	const material = new THREE.MeshBasicMaterial( { map: texture } );
 
-	const mesh = new THREE.Mesh( geometry, material );
+	mesh = new THREE.Mesh( geometry, material );
 	mesh.rotateY(Math.PI);
 	scene.add( mesh );
 
@@ -355,6 +371,7 @@ function animate(timestamp) {
 
 }
 
+var scale = 0;
 function update(dt) {
 	// TODO: Rattle on sound!?!
 	lat = Math.max( - 85, Math.min( 85, lat ) );
@@ -378,6 +395,16 @@ function update(dt) {
 	// TODO: Do in camera local coordinates?
 	camera.position.x += 3*speed_x*dt;
 	camera.position.z += 3*speed_z*dt;
+	
+	analyser.getFloatTimeDomainData(analyser_data);
+	let mean = analyser_data.reduce((total, x) => total += Math.abs(x), 0)/analyser_data.length;
+	scale = scale*0.5 + mean*0.5;
+	camera.fov = FOV + scale*0.3;
+	camera.updateProjectionMatrix();
+	//console.log(scale);
+	//mesh.scale.set(scale, scale, scale);
+	//mesh.matrixWorldNeedsUpdate = true;
+	//mesh.updateMatrix();
 
 	if(speed_x) {
 		move_listener(sphere_radius - camera.position.x);

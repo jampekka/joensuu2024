@@ -9,7 +9,7 @@
     "prese.coffee"(exports) {
       (function() {
         var win;
-        if (nw) {
+        if (typeof nw !== "undefined") {
           win = nw.Window.get();
           nw.App.registerGlobalHotKey(new nw.Shortcut({
             key: "F11",

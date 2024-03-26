@@ -27942,7 +27942,7 @@ void main() {
         }
       };
       var _context;
-      var AudioContext = class {
+      var AudioContext2 = class {
         static getContext() {
           if (_context === void 0) {
             _context = new (window.AudioContext || window.webkitAudioContext)();
@@ -27967,7 +27967,7 @@ void main() {
           loader.load(url, function(buffer) {
             try {
               const bufferCopy = buffer.slice(0);
-              const context = AudioContext.getContext();
+              const context = AudioContext2.getContext();
               context.decodeAudioData(bufferCopy, function(audioBuffer) {
                 onLoad(audioBuffer);
               }).catch(handleError);
@@ -28091,7 +28091,7 @@ void main() {
         constructor() {
           super();
           this.type = "AudioListener";
-          this.context = AudioContext.getContext();
+          this.context = AudioContext2.getContext();
           this.gain = this.context.createGain();
           this.gain.connect(this.context.destination);
           this.filter = null;
@@ -31289,7 +31289,7 @@ void main() {
       exports.AttachedBindMode = AttachedBindMode;
       exports.Audio = Audio;
       exports.AudioAnalyser = AudioAnalyser;
-      exports.AudioContext = AudioContext;
+      exports.AudioContext = AudioContext2;
       exports.AudioListener = AudioListener;
       exports.AudioLoader = AudioLoader;
       exports.AxesHelper = AxesHelper;
@@ -33722,14 +33722,14 @@ void main() {
                         }
                         (special || deferred2.resolveWith)(that, args);
                       }
-                    }, process2 = special ? mightThrow : function() {
+                    }, process = special ? mightThrow : function() {
                       try {
                         mightThrow();
                       } catch (e) {
                         if (jQuery.Deferred.exceptionHook) {
                           jQuery.Deferred.exceptionHook(
                             e,
-                            process2.error
+                            process.error
                           );
                         }
                         if (depth + 1 >= maxDepth) {
@@ -33742,14 +33742,14 @@ void main() {
                       }
                     };
                     if (depth) {
-                      process2();
+                      process();
                     } else {
                       if (jQuery.Deferred.getErrorHook) {
-                        process2.error = jQuery.Deferred.getErrorHook();
+                        process.error = jQuery.Deferred.getErrorHook();
                       } else if (jQuery.Deferred.getStackHook) {
-                        process2.error = jQuery.Deferred.getStackHook();
+                        process.error = jQuery.Deferred.getStackHook();
                       }
-                      window2.setTimeout(process2);
+                      window2.setTimeout(process);
                     }
                   };
                 }
@@ -38036,15 +38036,16 @@ void main() {
   var require_pano = __commonJS({
     "pano.coffee"(exports) {
       (async function() {
-        var $, AudioContext, GainNode, Reflector, THREE, USE_NODE, acoustics, acoustics_only, beat_interval, ctx, drum_sample, fs, init_listener, input, last_beat_time, load_sample, loop_on, mediaDevices, move_listener, play_drum, play_sample, reflectors, require_node, singing_sample, speed_of_sound, win;
+        var $, Reflector, THREE, USE_NODE, acoustics, acoustics_only, analyser, analyser_data, beat_interval, ctx, drum_sample, fs, init_listener, input, last_beat_time, load_sample, loop_on, move_listener, output, play_drum, play_sample, reflectors, require_node, shaman_sample, singing_sample, snare_sample, speed_of_sound, waa, win;
         THREE = require_three();
         $ = require_jquery();
         require_node = function(module2) {
           return __require(module2);
         };
-        USE_NODE = process.__nwjs;
+        USE_NODE = typeof nw !== "undefined";
         if (USE_NODE) {
-          ({ AudioContext, GainNode, mediaDevices } = require_node("node-web-audio-api"));
+          waa = require_node("node-web-audio-api");
+          Object.assign(globalThis, waa);
           fs = require_node("fs");
           win = nw.Window.get();
           nw.App.registerGlobalHotKey(new nw.Shortcut({
@@ -38060,7 +38061,7 @@ void main() {
             }
           }));
         } else {
-          mediaDevices = navigator.mediaDevices;
+          globalThis.mediaDevices = navigator.mediaDevices;
         }
         speed_of_sound = 331;
         Reflector = class Reflector {
@@ -38084,7 +38085,7 @@ void main() {
             ({ position, listener, decay } = this._state);
             rel_pos = position - listener;
             length = Math.abs(rel_pos) * 2;
-            this.gain = 10 / (1 + length);
+            this.gain = 20 / (1 + length);
             this.gain = Math.min(0.2, this.gain);
             this.delay = length / speed_of_sound;
             this.panning = Math.sign(rel_pos);
@@ -38098,10 +38099,12 @@ void main() {
           latency_hint: "interactive"
         });
         input = new GainNode(ctx);
-        input.connect(ctx.destination);
+        output = new GainNode(ctx);
+        input.connect(output);
+        output.connect(ctx.destination);
         acoustics = new GainNode(ctx);
         acoustics_only = new GainNode(ctx);
-        acoustics.connect(ctx.destination);
+        acoustics.connect(output);
         init_listener = 40;
         reflectors = [0, 120].map(function(position) {
           var r;
@@ -38162,8 +38165,14 @@ void main() {
           }
           return play_drum(drum_sample);
         }, beat_interval * 1e3);
-        drum_sample = await load_sample("shaman_trimmed.wav");
+        shaman_sample = await load_sample("shaman_trimmed.wav");
+        snare_sample = await load_sample("snare_trimmed.wav");
+        drum_sample = shaman_sample;
         singing_sample = await load_sample("singing.wav");
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser_data = new Float32Array(analyser.fftSize);
+        output.connect(analyser);
         $(document).one("keydown mousedown pointerdown pointerup touchend", async function() {
           var mic, mic_dev, mic_raw;
           ctx.resume();
@@ -38202,6 +38211,18 @@ void main() {
               acoustics.gain.value = 0;
             }
           }
+          if (ev.key === ",") {
+            drum_sample = function() {
+              switch (drum_sample) {
+                case shaman_sample:
+                  return snare_sample;
+                case snare_sample:
+                  return shaman_sample;
+                default:
+                  return shaman_sample;
+              }
+            }();
+          }
           if (ev.key === "l") {
             loop_on = !loop_on;
           }
@@ -38209,25 +38230,26 @@ void main() {
             return play_sample(singing_sample);
           }
         });
-        let camera, scene, renderer;
+        let camera, scene, renderer, mesh;
         let isUserInteracting = false, onPointerDownMouseX = 0, onPointerDownMouseY = 0, lon = 0, onPointerDownLon = 0, lat = 0, onPointerDownLat = 0, phi = 0, theta = 0;
         lat = 15;
         let time = null;
         let speed_x = 0;
         let speed_z = 0;
+        let FOV = 75;
         const sphere_radius = 40;
         init();
         animate();
         function init() {
           const container = document.getElementById("container");
-          camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1100);
+          camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, 1, 1100);
           scene = new THREE.Scene();
           const geometry = new THREE.SphereGeometry(sphere_radius, 60, 40);
           geometry.scale(-1, 1, 1);
           const texture = new THREE.TextureLoader().load("pano0006.jpg");
           texture.colorSpace = THREE.SRGBColorSpace;
           const material = new THREE.MeshBasicMaterial({ map: texture });
-          const mesh = new THREE.Mesh(geometry, material);
+          mesh = new THREE.Mesh(geometry, material);
           mesh.rotateY(Math.PI);
           scene.add(mesh);
           renderer = new THREE.WebGLRenderer();
@@ -38333,6 +38355,7 @@ void main() {
           update(dt);
           requestAnimationFrame(animate);
         }
+        var scale = 0;
         function update(dt) {
           lat = Math.max(-85, Math.min(85, lat));
           phi = THREE.MathUtils.degToRad(90 - lat);
@@ -38349,6 +38372,11 @@ void main() {
           const z = sphere_radius * Math.sin(phi) * Math.sin(theta);
           camera.position.x += 3 * speed_x * dt;
           camera.position.z += 3 * speed_z * dt;
+          analyser.getFloatTimeDomainData(analyser_data);
+          let mean = analyser_data.reduce((total, x2) => total += Math.abs(x2), 0) / analyser_data.length;
+          scale = scale * 0.5 + mean * 0.5;
+          camera.fov = FOV + scale * 0.3;
+          camera.updateProjectionMatrix();
           if (speed_x) {
             move_listener(sphere_radius - camera.position.x);
           }
