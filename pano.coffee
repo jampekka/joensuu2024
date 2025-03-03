@@ -1,6 +1,14 @@
 THREE = require "three"
 $ = require 'jquery'
 
+{ EffectComposer } = require 'three/examples/jsm/postprocessing/EffectComposer.js'
+{ RenderPass } = require 'three/examples/jsm/postprocessing/RenderPass.js'
+{ AfterimagePass } = require 'three/examples/jsm/postprocessing/AfterimagePass.js'
+{ UnrealBloomPass } = require 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+{ ShaderPass } = require 'three/examples/jsm/postprocessing/ShaderPass.js'
+
+{ LuminosityHighPassShader } = require 'three/examples/jsm/shaders/LuminosityHighPassShader.js'
+
 # Hack to trick esbuild to not try to bundle up the node module.
 # Esbuild seems to pass through non-constant-string requires.
 # There's probably a nicer way to do this.
@@ -52,7 +60,7 @@ class Reflector
 
 		@gainer.gain.linearRampToValueAtTime @gain, at
 		@delayer.delayTime.linearRampToValueAtTime @delay, at
-		@panner.pan.linearRampToValueAtTime @panning, at
+		#@panner.pan.linearRampToValueAtTime @panning, at
 
 
 ctx = new AudioContext latency_hint: "interactive"
@@ -117,14 +125,14 @@ setInterval (->
 
 shaman_sample = await load_sample "shaman_trimmed.wav"
 snare_sample = await load_sample "snare_trimmed.wav"
-drum_sample = shaman_sample
+drum_sample = snare_sample
 
 singing_sample = await load_sample "singing.wav"
 
 analyser = ctx.createAnalyser()
-analyser.fftSize = 1024
-analyser_data = new Float32Array(analyser.fftSize)
-output.connect analyser
+analyser.fftSize = 1024*2
+analyser_data = new Float32Array(analyser.frequencyBinCount)
+acoustics.connect analyser
 
 $(document).one "keydown mousedown pointerdown pointerup touchend", ->
 	ctx.resume()
@@ -171,7 +179,7 @@ $(document).on "keydown", (ev) ->
 		play_sample singing_sample
 
 ```
-let camera, scene, renderer, mesh;
+let camera, scene, renderer, mesh, composer, bloomPass;
 
 let isUserInteracting = false,
 	onPointerDownMouseX = 0, onPointerDownMouseY = 0,
@@ -182,7 +190,8 @@ lat = 15;
 let time = null;
 let speed_x = 0;
 let speed_z = 0;
-let FOV = 75;
+//let FOV = 75;
+let FOV = 45;
 
 const sphere_radius = 40;
 init();
@@ -215,7 +224,19 @@ function init() {
 	//renderer.toneMapping = THREE.ACESFilmicToneMapping;
 	//renderer.toneMapping = THREE.ReinhardToneMapping;
 	//renderer.toneMapping = THREE.CineonToneMapping;
-	renderer.toneMappingExposure = 2.0;
+	renderer.toneMappingExposure = 3.0;
+
+	composer = new EffectComposer(renderer);
+	const renderPass = new RenderPass(scene, camera);
+	composer.addPass(renderPass);
+
+	const afterimagePass = new AfterimagePass();
+	afterimagePass.uniforms['damp'].value = 0.9; // Adjust between 0 (no blur) to 1 (strong blur)
+	composer.addPass(afterimagePass);
+
+	bloomPass = new UnrealBloomPass(undefined)//, 1.5, 0.4, 0.85)
+	composer.addPass(bloomPass)
+	
 	container.appendChild( renderer.domElement );
 
 	container.style.touchAction = 'none';
@@ -372,22 +393,67 @@ function animate(timestamp) {
 }
 
 var scale = 0;
+var scale2 = 0;
+var cumEnergy = 0.0;
 function update(dt) {
+	/**
+	analyser.getFloatTimeDomainData(analyser_data)
+	let energy = 0.0;
+	for(let i=0; i < analyser_data.length; ++i) {
+		energy += (analyser_data[i]**2)/analyser_data.length
+	}
+
+	cumEnergy += energy
+	
+	let scale = 1 + Math.sin(time*2*Math.PI)*0.5
+	console.log(scale)
+	mesh.scale.set(scale, scale, scale)
+	**/
+
 	// TODO: Rattle on sound!?!
 	lat = Math.max( - 85, Math.min( 85, lat ) );
 	phi = THREE.MathUtils.degToRad( 90 - lat );
 	theta = THREE.MathUtils.degToRad( lon );
 	
-	const sway1_freq = 0.3;
+	//const sway1_freq = 0.3;
+	const sway1_freq = 0.15;
 	const sway2_freq = sway1_freq*0.2;
-	const sway_amp = THREE.MathUtils.degToRad(1);
+	//const sway_amp = THREE.MathUtils.degToRad(1);
+	const sway_amp = THREE.MathUtils.degToRad(0.25);
 	
 	let sway1 = Math.sin(time*sway1_freq*2*Math.PI);
 	let sway2 = Math.sin(time*sway2_freq*2*Math.PI);
 	
-	phi += sway1*THREE.MathUtils.degToRad(0.2);
-	theta += sway2*THREE.MathUtils.degToRad(0.5);
+	//phi += sway1*THREE.MathUtils.degToRad(0.2);
+	//theta += sway2*THREE.MathUtils.degToRad(0.5);
+	
 
+	
+	analyser.getFloatTimeDomainData(analyser_data);
+	let mean = analyser_data.reduce((total, x) => total += Math.abs(x), 0)/analyser_data.length;
+	mean *= 500.0
+	mean = Math.min(1, mean)
+	let smooth = 0.9 // TODO: Scale by dt
+	scale = scale*smooth + mean*(1 - smooth);
+
+	let smooth2 = 0.99 // TODO: Scale by dt
+	scale2 = scale2*(smooth2) + mean*(1 - smooth2);
+	
+	//let rattle = scale
+	let rattle = Math.sin(time*2*Math.PI*23)*(scale**2)*0.25 + scale*0.5 //*scale*0.5
+	
+	bloomPass.strength = (scale2**3)*5
+
+	camera.fov = FOV - rattle
+	camera.updateProjectionMatrix();
+
+	phi += sway1*sway_amp/2;
+	theta += sway2*sway_amp;
+	//console.log(scale);
+	//mesh.scale.set(scale, scale, scale);
+	//mesh.matrixWorldNeedsUpdate = true;
+	//mesh.updateMatrix();
+	
 	const x = sphere_radius * Math.sin( phi ) * Math.cos( theta );
 	let y = sphere_radius * Math.cos( phi );
 	const z = sphere_radius * Math.sin( phi ) * Math.sin( theta );
@@ -395,16 +461,6 @@ function update(dt) {
 	// TODO: Do in camera local coordinates?
 	camera.position.x += 3*speed_x*dt;
 	camera.position.z += 3*speed_z*dt;
-	
-	analyser.getFloatTimeDomainData(analyser_data);
-	let mean = analyser_data.reduce((total, x) => total += Math.abs(x), 0)/analyser_data.length;
-	scale = scale*0.5 + mean*0.5;
-	camera.fov = FOV + scale*0.3;
-	camera.updateProjectionMatrix();
-	//console.log(scale);
-	//mesh.scale.set(scale, scale, scale);
-	//mesh.matrixWorldNeedsUpdate = true;
-	//mesh.updateMatrix();
 
 	if(speed_x) {
 		move_listener(sphere_radius - camera.position.x);
@@ -412,7 +468,8 @@ function update(dt) {
 
 	camera.lookAt( x + camera.position.x, y, z + camera.position.z );
 	
-	renderer.render( scene, camera );
+	//renderer.render( scene, camera );
+	composer.render()
 
 }
 ```
