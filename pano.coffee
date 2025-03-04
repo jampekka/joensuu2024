@@ -484,7 +484,7 @@ function update(dt) {
 	//let rattle = scale
 	rattle_phase += (scale2**4*20*Math.PI*2)*dt
 	//let rattle = Math.sin(time*2*Math.PI*23)*(scale**4)*0.25 + scale*0.5 + scale2**4*25 //*scale*0.5
-	let rattle = Math.sin(rattle_phase)*scale2**4*0.3 + scale*0.5 //+ scale2**4*30 //*scale*0.5
+	let rattle = Math.sin(rattle_phase)*scale2**20*0.6 + scale*0.5 //+ scale2**4*30 //*scale*0.5
 	
 	// TODO: Heartbeat-like pulse
 	let bloom_bpm = 120*scale2**4
@@ -501,9 +501,16 @@ function update(dt) {
 	let sway_amp = THREE.MathUtils.degToRad(0.5);
 	//sway_amp *= (1 + scale2**4)*2
 	
-	material.uniforms.blendFactor.value = scale2**30
+	material.uniforms.blendFactor.value = scale2**20
 	
 	$("#distance_value").text((scale2**4).toFixed(1))
+	
+
+	$("#instructions_container").css({
+		opacity: 1 - scale2*1.2,
+		left: (0.05 - scale2*5)*100 + "%"
+	})
+	
 	let sway1 = Math.sin(time*sway1_freq*2*Math.PI);
 	let sway2 = Math.sin(time*sway2_freq*2*Math.PI);
 

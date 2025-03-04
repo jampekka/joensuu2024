@@ -12,6 +12,19 @@
 	position: absolute;
 	top: 50%;
 	right: 10%;
+	display: none;
+}
+
+#instructions_container {
+	font-size: 16pt;
+	position: fixed;
+	top: 30%;
+	left: 100px;
+	width: 600px;
+	background-color: #000000aa;
+	padding: 0px 20px 0px 20px;
+	border-radius: 10px;
+	font-weight: normal;
 }
 
 #distance_container td {
@@ -30,6 +43,15 @@
 	<body class="pano">
 
 		<div id="container">
+			<div id="instructions_container">
+				<p><b>Siliävuoren</b> järvestä nousevassa sileässä seinämässä on kalliomaalauksia.
+				Maalaukset ovat n. 5000(??) vuotta vanhoja, ja niissä näkyy mm. hirviä, ihmisiä
+				ja mahdollisesti vene.</p>
+
+				<p>Sileä kallionseinämä myös heijastaa ääntä tehokkaasti. Voit kokeilla kaikua vaikka huutamalla, taputtamalla, rummuttamalla tai lyömällä jalkaa.</p>
+
+				<p>Pitämällä ääntä kovempaa ja pidempään, pääset lähemmäs maalauksia. <b>Koita saatko maalaukset näkyviin!</b></p>
+			</div>
 			<table id="distance_container">
 				<tr><td id="distance_value"><td> m
 				<tr><td><td>

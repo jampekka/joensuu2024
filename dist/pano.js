@@ -58639,7 +58639,7 @@ void main() {
           scale2 = scale2 * smooth2 + mean * (1 - smooth2);
           let listener_position = init_listener - scale2 ** 4 * 30;
           rattle_phase += scale2 ** 4 * 20 * Math.PI * 2 * dt;
-          let rattle = Math.sin(rattle_phase) * scale2 ** 4 * 0.3 + scale * 0.5;
+          let rattle = Math.sin(rattle_phase) * scale2 ** 20 * 0.6 + scale * 0.5;
           let bloom_bpm = 120 * scale2 ** 4;
           let bloom_freq = 1 / (listener_position * 2 / speed_of_sound) / 4;
           bloom_phase += bloom_freq * Math.PI * 2 * dt;
@@ -58648,8 +58648,12 @@ void main() {
           camera.fov = FOV - rattle;
           camera.updateProjectionMatrix();
           let sway_amp = THREE.MathUtils.degToRad(0.5);
-          material.uniforms.blendFactor.value = scale2 ** 30;
+          material.uniforms.blendFactor.value = scale2 ** 20;
           $("#distance_value").text((scale2 ** 4).toFixed(1));
+          $("#instructions_container").css({
+            opacity: 1 - scale2 * 1.2,
+            left: (0.05 - scale2 * 5) * 100 + "%"
+          });
           let sway1 = Math.sin(time * sway1_freq * 2 * Math.PI);
           let sway2 = Math.sin(time * sway2_freq * 2 * Math.PI);
           phi += sway1 * sway_amp / 2;
