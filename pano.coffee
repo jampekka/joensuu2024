@@ -125,7 +125,7 @@ setInterval (->
 
 shaman_sample = await load_sample "shaman_trimmed.wav"
 snare_sample = await load_sample "snare_trimmed.wav"
-drum_sample = snare_sample
+drum_sample = shaman_sample
 
 singing_sample = await load_sample "singing.wav"
 
@@ -395,6 +395,8 @@ function animate(timestamp) {
 var scale = 0;
 var scale2 = 0;
 var cumEnergy = 0.0;
+var rattle_phase = 0.0;
+var bloom_phase = 0.0;
 function update(dt) {
 	/**
 	analyser.getFloatTimeDomainData(analyser_data)
@@ -419,10 +421,7 @@ function update(dt) {
 	const sway1_freq = 0.15;
 	const sway2_freq = sway1_freq*0.2;
 	//const sway_amp = THREE.MathUtils.degToRad(1);
-	const sway_amp = THREE.MathUtils.degToRad(0.25);
 	
-	let sway1 = Math.sin(time*sway1_freq*2*Math.PI);
-	let sway2 = Math.sin(time*sway2_freq*2*Math.PI);
 	
 	//phi += sway1*THREE.MathUtils.degToRad(0.2);
 	//theta += sway2*THREE.MathUtils.degToRad(0.5);
@@ -433,19 +432,35 @@ function update(dt) {
 	let mean = analyser_data.reduce((total, x) => total += Math.abs(x), 0)/analyser_data.length;
 	mean *= 500.0
 	mean = Math.min(1, mean)
-	let smooth = 0.9 // TODO: Scale by dt
+	let smooth = Math.exp(-dt/0.2) //0.9 // TODO: Scale by dt
 	scale = scale*smooth + mean*(1 - smooth);
 
-	let smooth2 = 0.99 // TODO: Scale by dt
+	let smooth2 = Math.exp(-dt/5.0) //0.995 // TODO: Scale by dt
+	
 	scale2 = scale2*(smooth2) + mean*(1 - smooth2);
 	
 	//let rattle = scale
-	let rattle = Math.sin(time*2*Math.PI*23)*(scale**2)*0.25 + scale*0.5 //*scale*0.5
+	rattle_phase += (scale2**4*20*Math.PI*2)*dt
+	//let rattle = Math.sin(time*2*Math.PI*23)*(scale**4)*0.25 + scale*0.5 + scale2**4*25 //*scale*0.5
+	let rattle = Math.sin(rattle_phase)*scale2**4*0.1 + scale*0.5 + scale2**4*30 //*scale*0.5
 	
-	bloomPass.strength = (scale2**3)*5
+	// TODO: Heartbeat-like pulse
+	let bloom_bpm = 120*scale2**4
+	let bloom_freq = bloom_bpm/60
+	bloom_phase += (bloom_freq*Math.PI*2)*dt
+	bloom_phase = bloom_phase%(2*Math.PI*2)
+	bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*5
 
 	camera.fov = FOV - rattle
 	camera.updateProjectionMatrix();
+	
+	let sway_amp = THREE.MathUtils.degToRad(0.5);
+	//sway_amp *= (1 + scale2**4)*2
+
+	
+	$("#distance_value").text((scale2**4).toFixed(1))
+	let sway1 = Math.sin(time*sway1_freq*2*Math.PI);
+	let sway2 = Math.sin(time*sway2_freq*2*Math.PI);
 
 	phi += sway1*sway_amp/2;
 	theta += sway2*sway_amp;
@@ -466,7 +481,7 @@ function update(dt) {
 		move_listener(sphere_radius - camera.position.x);
 	}
 
-	camera.lookAt( x + camera.position.x, y, z + camera.position.z );
+	camera.lookAt( x + camera.position.x, y - 5.0, z + camera.position.z );
 	
 	//renderer.render( scene, camera );
 	composer.render()

@@ -58384,7 +58384,7 @@ void main() {
         }, beat_interval * 1e3);
         shaman_sample = await load_sample("shaman_trimmed.wav");
         snare_sample = await load_sample("snare_trimmed.wav");
-        drum_sample = snare_sample;
+        drum_sample = shaman_sample;
         singing_sample = await load_sample("singing.wav");
         analyser = ctx.createAnalyser();
         analyser.fftSize = 1024 * 2;
@@ -58583,27 +58583,35 @@ void main() {
         var scale = 0;
         var scale2 = 0;
         var cumEnergy = 0;
+        var rattle_phase = 0;
+        var bloom_phase = 0;
         function update(dt) {
           lat = Math.max(-85, Math.min(85, lat));
           phi = THREE.MathUtils.degToRad(90 - lat);
           theta = THREE.MathUtils.degToRad(lon);
           const sway1_freq = 0.15;
           const sway2_freq = sway1_freq * 0.2;
-          const sway_amp = THREE.MathUtils.degToRad(0.25);
-          let sway1 = Math.sin(time * sway1_freq * 2 * Math.PI);
-          let sway2 = Math.sin(time * sway2_freq * 2 * Math.PI);
           analyser.getFloatTimeDomainData(analyser_data);
           let mean = analyser_data.reduce((total, x2) => total += Math.abs(x2), 0) / analyser_data.length;
           mean *= 500;
           mean = Math.min(1, mean);
-          let smooth = 0.9;
+          let smooth = Math.exp(-dt / 0.2);
           scale = scale * smooth + mean * (1 - smooth);
-          let smooth2 = 0.99;
+          let smooth2 = Math.exp(-dt / 5);
           scale2 = scale2 * smooth2 + mean * (1 - smooth2);
-          let rattle = Math.sin(time * 2 * Math.PI * 23) * scale ** 2 * 0.25 + scale * 0.5;
-          bloomPass.strength = scale2 ** 3 * 5;
+          rattle_phase += scale2 ** 4 * 20 * Math.PI * 2 * dt;
+          let rattle = Math.sin(rattle_phase) * scale2 ** 4 * 0.1 + scale * 0.5 + scale2 ** 4 * 30;
+          let bloom_bpm = 120 * scale2 ** 4;
+          let bloom_freq = bloom_bpm / 60;
+          bloom_phase += bloom_freq * Math.PI * 2 * dt;
+          bloom_phase = bloom_phase % (2 * Math.PI * 2);
+          bloomPass.strength = (scale2 ** 3 * (0.8 + 0.2 * (Math.sin(bloom_phase) + 1) / 2)) ** 2 * 5;
           camera.fov = FOV - rattle;
           camera.updateProjectionMatrix();
+          let sway_amp = THREE.MathUtils.degToRad(0.5);
+          $("#distance_value").text((scale2 ** 4).toFixed(1));
+          let sway1 = Math.sin(time * sway1_freq * 2 * Math.PI);
+          let sway2 = Math.sin(time * sway2_freq * 2 * Math.PI);
           phi += sway1 * sway_amp / 2;
           theta += sway2 * sway_amp;
           const x = sphere_radius * Math.sin(phi) * Math.cos(theta);
@@ -58614,7 +58622,7 @@ void main() {
           if (speed_x) {
             move_listener(sphere_radius - camera.position.x);
           }
-          camera.lookAt(x + camera.position.x, y, z + camera.position.z);
+          camera.lookAt(x + camera.position.x, y - 5, z + camera.position.z);
           composer.render();
         }
         ;
