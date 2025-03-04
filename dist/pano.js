@@ -58447,7 +58447,7 @@ void main() {
             return play_sample(singing_sample);
           }
         });
-        let camera, scene, renderer, mesh, composer, bloomPass;
+        let camera, scene, renderer, mesh, composer, bloomPass, material;
         let isUserInteracting = false, onPointerDownMouseX = 0, onPointerDownMouseY = 0, lon = 0, onPointerDownLon = 0, lat = 0, onPointerDownLat = 0, phi = 0, theta = 0;
         lat = 15;
         let time = null;
@@ -58464,8 +58464,43 @@ void main() {
           const geometry = new THREE.SphereGeometry(sphere_radius, 60, 40);
           geometry.scale(-1, 1, 1);
           const texture = new THREE.TextureLoader().load("pano0006.jpg");
+          const texture_overlay = new THREE.TextureLoader().load("pano0006_paintings.png");
           texture.colorSpace = THREE.SRGBColorSpace;
-          const material = new THREE.MeshBasicMaterial({ map: texture });
+          texture_overlay.colorSpace = THREE.SRGBColorSpace;
+          material = new THREE.ShaderMaterial({
+            uniforms: {
+              texture1: { value: texture },
+              texture2: { value: texture_overlay },
+              blendFactor: { value: 0 }
+              // Adjustable additive intensity
+            },
+            vertexShader: `
+	    varying vec2 vUv;
+	    void main() {
+	      vUv = uv;
+	      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	    }
+	  `,
+            fragmentShader: `
+	    uniform sampler2D texture1;
+	    uniform sampler2D texture2;
+	    uniform float blendFactor;
+	    varying vec2 vUv;
+	    
+	    void main() {
+	      vec4 color1 = texture2D(texture1, vUv);
+	      vec4 color2 = texture2D(texture2, vUv);
+	      
+	      // Additive blending
+	      vec4 blendedColor = color1 + color2 * blendFactor;
+	      blendedColor.a = 1.0; // Ensure alpha is valid
+	      
+	      gl_FragColor = blendedColor;
+	    }
+	  `,
+            transparent: true
+            // Allow transparency
+          });
           mesh = new THREE.Mesh(geometry, material);
           mesh.rotateY(Math.PI);
           scene.add(mesh);
@@ -58602,16 +58637,18 @@ void main() {
           scale = scale * smooth + mean * (1 - smooth);
           let smooth2 = Math.exp(-dt / 10);
           scale2 = scale2 * smooth2 + mean * (1 - smooth2);
+          let listener_position = init_listener - scale2 ** 4 * 30;
           rattle_phase += scale2 ** 4 * 20 * Math.PI * 2 * dt;
-          let rattle = Math.sin(rattle_phase) * scale2 ** 4 * 0.1 + scale * 0.5;
+          let rattle = Math.sin(rattle_phase) * scale2 ** 4 * 0.3 + scale * 0.5;
           let bloom_bpm = 120 * scale2 ** 4;
-          let bloom_freq = bloom_bpm / 60;
+          let bloom_freq = 1 / (listener_position * 2 / speed_of_sound) / 4;
           bloom_phase += bloom_freq * Math.PI * 2 * dt;
           bloom_phase = bloom_phase % (2 * Math.PI * 2);
           bloomPass.strength = (scale2 ** 3 * (0.8 + 0.2 * (Math.sin(bloom_phase) + 1) / 2)) ** 2 * 5;
           camera.fov = FOV - rattle;
           camera.updateProjectionMatrix();
           let sway_amp = THREE.MathUtils.degToRad(0.5);
+          material.uniforms.blendFactor.value = scale2 ** 30;
           $("#distance_value").text((scale2 ** 4).toFixed(1));
           let sway1 = Math.sin(time * sway1_freq * 2 * Math.PI);
           let sway2 = Math.sin(time * sway2_freq * 2 * Math.PI);
@@ -58620,8 +58657,6 @@ void main() {
           const x = sphere_radius * Math.sin(phi) * Math.cos(theta);
           let y = sphere_radius * Math.cos(phi);
           const z = sphere_radius * Math.sin(phi) * Math.sin(theta);
-          let listener_position = init_listener - scale2 ** 4 * 30;
-          console.log(scale2);
           camera.position.x = sphere_radius - listener_position;
           move_listener(listener_position);
           camera.lookAt(x + camera.position.x, y, z + camera.position.z);

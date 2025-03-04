@@ -179,7 +179,7 @@ $(document).on "keydown", (ev) ->
 		play_sample singing_sample
 
 ```
-let camera, scene, renderer, mesh, composer, bloomPass;
+let camera, scene, renderer, mesh, composer, bloomPass, material;
 
 let isUserInteracting = false,
 	onPointerDownMouseX = 0, onPointerDownMouseY = 0,
@@ -210,8 +210,45 @@ function init() {
 	geometry.scale( - 1, 1, 1 );
 
 	const texture = new THREE.TextureLoader().load( 'pano0006.jpg' );
+	const texture_overlay = new THREE.TextureLoader().load( 'pano0006_paintings.png' );
 	texture.colorSpace = THREE.SRGBColorSpace;
-	const material = new THREE.MeshBasicMaterial( { map: texture } );
+	texture_overlay.colorSpace = THREE.SRGBColorSpace;
+	//const material = new THREE.MeshBasicMaterial( { map: texture } );
+	
+	material = new THREE.ShaderMaterial({
+	  uniforms: {
+	    texture1: { value: texture },
+	    texture2: { value: texture_overlay },
+	    blendFactor: { value: 0.0 } // Adjustable additive intensity
+	  },
+	  vertexShader: \`
+	    varying vec2 vUv;
+	    void main() {
+	      vUv = uv;
+	      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	    }
+	  \`,
+	  fragmentShader: \`
+	    uniform sampler2D texture1;
+	    uniform sampler2D texture2;
+	    uniform float blendFactor;
+	    varying vec2 vUv;
+	    
+	    void main() {
+	      vec4 color1 = texture2D(texture1, vUv);
+	      vec4 color2 = texture2D(texture2, vUv);
+	      
+	      // Additive blending
+	      vec4 blendedColor = color1 + color2 * blendFactor;
+	      blendedColor.a = 1.0; // Ensure alpha is valid
+	      
+	      gl_FragColor = blendedColor;
+	    }
+	  \`,
+	  transparent: true // Allow transparency
+	});
+
+
 
 	mesh = new THREE.Mesh( geometry, material );
 	mesh.rotateY(Math.PI);
@@ -442,25 +479,29 @@ function update(dt) {
 	
 	scale2 = scale2*(smooth2) + mean*(1 - smooth2);
 	
+	let listener_position = init_listener - scale2**4*30
+	
 	//let rattle = scale
 	rattle_phase += (scale2**4*20*Math.PI*2)*dt
 	//let rattle = Math.sin(time*2*Math.PI*23)*(scale**4)*0.25 + scale*0.5 + scale2**4*25 //*scale*0.5
-	let rattle = Math.sin(rattle_phase)*scale2**4*0.1 + scale*0.5 //+ scale2**4*30 //*scale*0.5
+	let rattle = Math.sin(rattle_phase)*scale2**4*0.3 + scale*0.5 //+ scale2**4*30 //*scale*0.5
 	
 	// TODO: Heartbeat-like pulse
 	let bloom_bpm = 120*scale2**4
-	let bloom_freq = bloom_bpm/60
+	//let bloom_freq = bloom_bpm/60
+	let bloom_freq = 1/(listener_position*2/speed_of_sound)/4
 	bloom_phase += (bloom_freq*Math.PI*2)*dt
 	bloom_phase = bloom_phase%(2*Math.PI*2)
 	bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*5
-	//bloomPass.strength = scale2**4*mean*5
+	//bloomPass.strength = scale2**4*mean**4*5
 
 	camera.fov = FOV - rattle
 	camera.updateProjectionMatrix();
 	
 	let sway_amp = THREE.MathUtils.degToRad(0.5);
 	//sway_amp *= (1 + scale2**4)*2
-
+	
+	material.uniforms.blendFactor.value = scale2**30
 	
 	$("#distance_value").text((scale2**4).toFixed(1))
 	let sway1 = Math.sin(time*sway1_freq*2*Math.PI);
@@ -480,8 +521,6 @@ function update(dt) {
 	// TODO: Do in camera local coordinates?
 	//camera.position.x += 3*speed_x*dt;
 	//camera.position.z += 3*speed_z*dt;
-	let listener_position = init_listener - scale2**4*30
-	console.log(scale2)
 	camera.position.x = sphere_radius - listener_position
 	move_listener(listener_position)
 
