@@ -398,6 +398,9 @@ var cumEnergy = 0.0;
 var rattle_phase = 0.0;
 var bloom_phase = 0.0;
 function update(dt) {
+	if(dt == 0) {
+		return
+	}
 	/**
 	analyser.getFloatTimeDomainData(analyser_data)
 	let energy = 0.0;
@@ -432,17 +435,17 @@ function update(dt) {
 	let mean = analyser_data.reduce((total, x) => total += Math.abs(x), 0)/analyser_data.length;
 	mean *= 500.0
 	mean = Math.min(1, mean)
-	let smooth = Math.exp(-dt/0.2) //0.9 // TODO: Scale by dt
+	let smooth = Math.exp(-dt/0.2) 
 	scale = scale*smooth + mean*(1 - smooth);
 
-	let smooth2 = Math.exp(-dt/5.0) //0.995 // TODO: Scale by dt
+	let smooth2 = Math.exp(-dt/10.0)
 	
 	scale2 = scale2*(smooth2) + mean*(1 - smooth2);
 	
 	//let rattle = scale
 	rattle_phase += (scale2**4*20*Math.PI*2)*dt
 	//let rattle = Math.sin(time*2*Math.PI*23)*(scale**4)*0.25 + scale*0.5 + scale2**4*25 //*scale*0.5
-	let rattle = Math.sin(rattle_phase)*scale2**4*0.1 + scale*0.5 + scale2**4*30 //*scale*0.5
+	let rattle = Math.sin(rattle_phase)*scale2**4*0.1 + scale*0.5 //+ scale2**4*30 //*scale*0.5
 	
 	// TODO: Heartbeat-like pulse
 	let bloom_bpm = 120*scale2**4
@@ -450,6 +453,7 @@ function update(dt) {
 	bloom_phase += (bloom_freq*Math.PI*2)*dt
 	bloom_phase = bloom_phase%(2*Math.PI*2)
 	bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*5
+	//bloomPass.strength = scale2**4*mean*5
 
 	camera.fov = FOV - rattle
 	camera.updateProjectionMatrix();
@@ -474,14 +478,18 @@ function update(dt) {
 	const z = sphere_radius * Math.sin( phi ) * Math.sin( theta );
 	
 	// TODO: Do in camera local coordinates?
-	camera.position.x += 3*speed_x*dt;
-	camera.position.z += 3*speed_z*dt;
+	//camera.position.x += 3*speed_x*dt;
+	//camera.position.z += 3*speed_z*dt;
+	let listener_position = init_listener - scale2**4*30
+	console.log(scale2)
+	camera.position.x = sphere_radius - listener_position
+	move_listener(listener_position)
 
-	if(speed_x) {
-		move_listener(sphere_radius - camera.position.x);
-	}
+	//if(speed_x) {
+	//	move_listener(sphere_radius - camera.position.x);
+	//}
 
-	camera.lookAt( x + camera.position.x, y - 5.0, z + camera.position.z );
+	camera.lookAt( x + camera.position.x, y, z + camera.position.z );
 	
 	//renderer.render( scene, camera );
 	composer.render()

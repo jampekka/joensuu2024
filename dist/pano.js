@@ -58586,6 +58586,9 @@ void main() {
         var rattle_phase = 0;
         var bloom_phase = 0;
         function update(dt) {
+          if (dt == 0) {
+            return;
+          }
           lat = Math.max(-85, Math.min(85, lat));
           phi = THREE.MathUtils.degToRad(90 - lat);
           theta = THREE.MathUtils.degToRad(lon);
@@ -58597,10 +58600,10 @@ void main() {
           mean = Math.min(1, mean);
           let smooth = Math.exp(-dt / 0.2);
           scale = scale * smooth + mean * (1 - smooth);
-          let smooth2 = Math.exp(-dt / 5);
+          let smooth2 = Math.exp(-dt / 10);
           scale2 = scale2 * smooth2 + mean * (1 - smooth2);
           rattle_phase += scale2 ** 4 * 20 * Math.PI * 2 * dt;
-          let rattle = Math.sin(rattle_phase) * scale2 ** 4 * 0.1 + scale * 0.5 + scale2 ** 4 * 30;
+          let rattle = Math.sin(rattle_phase) * scale2 ** 4 * 0.1 + scale * 0.5;
           let bloom_bpm = 120 * scale2 ** 4;
           let bloom_freq = bloom_bpm / 60;
           bloom_phase += bloom_freq * Math.PI * 2 * dt;
@@ -58617,12 +58620,11 @@ void main() {
           const x = sphere_radius * Math.sin(phi) * Math.cos(theta);
           let y = sphere_radius * Math.cos(phi);
           const z = sphere_radius * Math.sin(phi) * Math.sin(theta);
-          camera.position.x += 3 * speed_x * dt;
-          camera.position.z += 3 * speed_z * dt;
-          if (speed_x) {
-            move_listener(sphere_radius - camera.position.x);
-          }
-          camera.lookAt(x + camera.position.x, y - 5, z + camera.position.z);
+          let listener_position = init_listener - scale2 ** 4 * 30;
+          console.log(scale2);
+          camera.position.x = sphere_radius - listener_position;
+          move_listener(listener_position);
+          camera.lookAt(x + camera.position.x, y, z + camera.position.z);
           composer.render();
         }
         ;
