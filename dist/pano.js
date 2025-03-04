@@ -58248,7 +58248,7 @@ void main() {
   var require_pano = __commonJS({
     "pano.coffee"(exports) {
       (async function() {
-        var $, AfterimagePass2, EffectComposer2, LuminosityHighPassShader2, Reflector, RenderPass2, ShaderPass2, THREE, USE_NODE, UnrealBloomPass2, acoustics, acoustics_only, analyser, analyser_data, beat_interval, ctx, drum_sample, fs, init_listener, input, last_beat_time, load_sample, loop_on, move_listener, output, play_drum, play_sample, reflectors, require_node, shaman_sample, singing_sample, snare_sample, speed_of_sound, waa, win;
+        var $, AfterimagePass2, EffectComposer2, LuminosityHighPassShader2, Reflector, RenderPass2, ShaderPass2, THREE, USE_NODE, UnrealBloomPass2, acoustics, acoustics_only, analyser, analyser_data, beat_interval, createReverb, ctx, drum_sample, fs, init_listener, input, last_beat_time, load_sample, loop_on, move_listener, output, play_drum, play_sample, reflectors, require_node, shaman_sample, singing_sample, snare_sample, speed_of_sound, system_latency, waa, win;
         THREE = require_three();
         $ = require_jquery();
         ({ EffectComposer: EffectComposer2 } = (init_EffectComposer(), __toCommonJS(EffectComposer_exports)));
@@ -58281,18 +58281,74 @@ void main() {
         } else {
           globalThis.mediaDevices = navigator.mediaDevices;
         }
+        createReverb = function(audioContext, { preDelay = 0.05, riseTime = 1e-4, decayTime = 0.01, gain = 1, lowpassFreq = 2e3 } = {}) {
+          var absSum, buffer, convolver, decayFactor, envelope, gainNode, generateGaussian, i, impulse, impulseLength, j, k, l, lastEnvelopeValue, lowpass, m, normFactor, preDelayNode, ref, ref1, ref2, ref3, riseFactor, sampleRate, time2;
+          sampleRate = audioContext.sampleRate;
+          impulseLength = Math.ceil((riseTime + 3 * decayTime) * sampleRate);
+          impulse = audioContext.createBuffer(1, impulseLength, sampleRate);
+          buffer = impulse.getChannelData(0);
+          envelope = new Float32Array(impulseLength);
+          for (i = j = 0, ref = impulseLength; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j) {
+            time2 = i / sampleRate;
+            riseFactor = 1 - Math.exp(-time2 / riseTime);
+            decayFactor = Math.exp(-time2 / decayTime);
+            envelope[i] = riseFactor * decayFactor;
+          }
+          lastEnvelopeValue = envelope[impulseLength - 1];
+          for (i = k = 0, ref1 = impulseLength; 0 <= ref1 ? k < ref1 : k > ref1; i = 0 <= ref1 ? ++k : --k) {
+            envelope[i] -= lastEnvelopeValue * ((i + 1) / impulseLength);
+          }
+          generateGaussian = function() {
+            var u1, u2;
+            u1 = Math.random();
+            u2 = Math.random();
+            return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+          };
+          absSum = 0;
+          for (i = l = 0, ref2 = impulseLength; 0 <= ref2 ? l < ref2 : l > ref2; i = 0 <= ref2 ? ++l : --l) {
+            buffer[i] = generateGaussian() * envelope[i];
+            absSum += Math.abs(buffer[i]);
+          }
+          normFactor = absSum > 0 ? 1 / absSum : 1;
+          for (i = m = 0, ref3 = impulseLength; 0 <= ref3 ? m < ref3 : m > ref3; i = 0 <= ref3 ? ++m : --m) {
+            buffer[i] *= normFactor;
+          }
+          preDelayNode = audioContext.createDelay();
+          preDelayNode.delayTime.value = preDelay;
+          convolver = audioContext.createConvolver();
+          convolver.normalize = true;
+          convolver.buffer = impulse;
+          lowpass = audioContext.createBiquadFilter();
+          lowpass.type = "lowpass";
+          lowpass.frequency.value = lowpassFreq;
+          gainNode = audioContext.createGain();
+          gainNode.gain.value = gain;
+          preDelayNode.connect(convolver).connect(lowpass).connect(gainNode);
+          return [preDelayNode, gainNode];
+        };
         speed_of_sound = 331;
         Reflector = class Reflector {
           constructor(ctx1, _state) {
+            var opts;
             this.ctx = ctx1;
             this._state = _state;
-            this.gainer = ctx.createGain();
-            this.delayer = ctx.createDelay();
+            opts = {
+              riseTime: 1e-4,
+              decayTime: 0.01
+            };
+            if (this._state.position > 200) {
+              opts = {
+                riseTime: 0.1,
+                decayTime: 0.2,
+                lowpassFreq: 1e3
+              };
+            }
+            [this.delayer, this.gainer] = createReverb(this.ctx, opts);
             this.panner = ctx.createStereoPanner();
-            this.gainer.connect(this.delayer).connect(this.panner);
-            this.input = this.gainer;
-            this.output = this.panner;
+            this.input = this.delayer;
+            this.output = this.gainer;
             this.update(0);
+            return;
           }
           set_listener(listener) {
             this._state.listener = listener;
@@ -58303,18 +58359,20 @@ void main() {
             ({ position, listener, decay } = this._state);
             rel_pos = position - listener;
             length = Math.abs(rel_pos) * 2;
-            this.gain = 20 / (1 + length);
-            this.gain = Math.min(0.2, this.gain);
+            this.gain = 2e4 / (1 + length ** 2);
+            console.log(this.gain);
+            this.gain = Math.min(5, this.gain);
             this.delay = length / speed_of_sound;
             this.panning = Math.sign(rel_pos);
             at = this.ctx.currentTime + transition;
             this.gainer.gain.linearRampToValueAtTime(this.gain, at);
-            return this.delayer.delayTime.linearRampToValueAtTime(this.delay, at);
+            return this.delayer.delayTime.linearRampToValueAtTime(Math.max(0, this.delay - system_latency), at);
           }
         };
         ctx = new AudioContext({
           latency_hint: "interactive"
         });
+        system_latency = 0.1;
         input = new GainNode(ctx);
         output = new GainNode(ctx);
         input.connect(output);
@@ -58323,7 +58381,7 @@ void main() {
         acoustics_only = new GainNode(ctx);
         acoustics.connect(output);
         init_listener = 40;
-        reflectors = [0, 120].map(function(position) {
+        reflectors = [0, 120, 300, 500].map(function(position) {
           var r;
           r = new Reflector(ctx, {
             listener: init_listener,
@@ -58335,11 +58393,11 @@ void main() {
           return r;
         });
         move_listener = function(position) {
-          var i, len, r, results;
+          var j, len, r, results;
           $("#distance_value").text(position.toFixed(1));
           results = [];
-          for (i = 0, len = reflectors.length; i < len; i++) {
-            r = reflectors[i];
+          for (j = 0, len = reflectors.length; j < len; j++) {
+            r = reflectors[j];
             results.push(r.set_listener(position));
           }
           return results;
@@ -58387,7 +58445,7 @@ void main() {
         drum_sample = shaman_sample;
         singing_sample = await load_sample("singing.wav");
         analyser = ctx.createAnalyser();
-        analyser.fftSize = 1024 * 2;
+        analyser.fftSize = 4096;
         analyser_data = new Float32Array(analyser.frequencyBinCount);
         acoustics.connect(analyser);
         $(document).one("keydown mousedown pointerdown pointerup touchend", async function() {
@@ -58475,29 +58533,29 @@ void main() {
               // Adjustable additive intensity
             },
             vertexShader: `
-	    varying vec2 vUv;
-	    void main() {
-	      vUv = uv;
-	      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-	    }
-	  `,
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
             fragmentShader: `
-	    uniform sampler2D texture1;
-	    uniform sampler2D texture2;
-	    uniform float blendFactor;
-	    varying vec2 vUv;
-	    
-	    void main() {
-	      vec4 color1 = texture2D(texture1, vUv);
-	      vec4 color2 = texture2D(texture2, vUv);
-	      
-	      // Additive blending
-	      vec4 blendedColor = color1 + color2 * blendFactor;
-	      blendedColor.a = 1.0; // Ensure alpha is valid
-	      
-	      gl_FragColor = blendedColor;
-	    }
-	  `,
+        uniform sampler2D texture1;
+        uniform sampler2D texture2;
+        uniform float blendFactor;
+        varying vec2 vUv;
+        
+        void main() {
+          vec4 color1 = texture2D(texture1, vUv);
+          vec4 color2 = texture2D(texture2, vUv);
+          
+          // Additive blending
+          vec4 blendedColor = color1 + color2 * blendFactor;
+          blendedColor.a = 1.0; // Ensure alpha is valid
+          
+          gl_FragColor = blendedColor;
+        }
+      `,
             transparent: true
             // Allow transparency
           });
@@ -58615,8 +58673,9 @@ void main() {
           update(dt);
           requestAnimationFrame(animate);
         }
-        var scale = 0;
-        var scale2 = 0;
+        var scale_ = 0;
+        var scale2_ = 0;
+        var running_mean = 0;
         var cumEnergy = 0;
         var rattle_phase = 0;
         var bloom_phase = 0;
@@ -58629,14 +58688,18 @@ void main() {
           theta = THREE.MathUtils.degToRad(lon);
           const sway1_freq = 0.15;
           const sway2_freq = sway1_freq * 0.2;
-          analyser.getFloatTimeDomainData(analyser_data);
-          let mean = analyser_data.reduce((total, x2) => total += Math.abs(x2), 0) / analyser_data.length;
-          mean *= 500;
-          mean = Math.min(1, mean);
           let smooth = Math.exp(-dt / 0.2);
-          scale = scale * smooth + mean * (1 - smooth);
+          let runsmooth = Math.exp(-dt / 0.5);
+          analyser.getFloatTimeDomainData(analyser_data);
+          let mean = analyser_data.reduce((total, x2) => total + Math.abs(x2), 0) / analyser_data.length;
+          mean *= 5e3;
+          running_mean = runsmooth * running_mean + (1 - runsmooth) * mean;
+          mean = Math.min(1, running_mean);
+          scale_ = scale_ * smooth + mean * (1 - smooth);
+          let scale = Math.min(scale_, 1);
           let smooth2 = Math.exp(-dt / 10);
-          scale2 = scale2 * smooth2 + mean * (1 - smooth2);
+          scale2_ = scale2_ * smooth2 + mean * (1 - smooth2);
+          let scale2 = Math.min(scale2_, 1);
           let listener_position = init_listener - scale2 ** 4 * 30;
           rattle_phase += scale2 ** 4 * 20 * Math.PI * 2 * dt;
           let rattle = Math.sin(rattle_phase) * scale2 ** 20 * 0.6 + scale * 0.5;
@@ -58651,8 +58714,8 @@ void main() {
           material.uniforms.blendFactor.value = scale2 ** 20;
           $("#distance_value").text((scale2 ** 4).toFixed(1));
           $("#instructions_container").css({
-            opacity: 1 - scale2 * 1.2,
-            left: (0.05 - scale2 * 5) * 100 + "%"
+            opacity: 3 - scale2 * 6
+            //left: (0.05 - scale2**0.5)*100 + "%"
           });
           let sway1 = Math.sin(time * sway1_freq * 2 * Math.PI);
           let sway2 = Math.sin(time * sway2_freq * 2 * Math.PI);
