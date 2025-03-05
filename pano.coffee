@@ -6,6 +6,8 @@ $ = require 'jquery'
 { AfterimagePass } = require 'three/examples/jsm/postprocessing/AfterimagePass.js'
 { UnrealBloomPass } = require 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 { ShaderPass } = require 'three/examples/jsm/postprocessing/ShaderPass.js'
+{ OutputPass } = require 'three/examples/jsm/postprocessing/OutputPass.js'
+
 
 { LuminosityHighPassShader } = require 'three/examples/jsm/shaders/LuminosityHighPassShader.js'
 
@@ -127,7 +129,6 @@ class Reflector
         length = Math.abs(rel_pos)*2
         # Hacky supergain
         @gain = 20000/((1 + length**2))
-        console.log @gain
         @gain = Math.min 5.0, @gain
         
         @delay = length/speed_of_sound
@@ -178,8 +179,10 @@ load_sample = (url) ->
     
 play_sample = (sample, dst=input) ->
     src = ctx.createBufferSource()
+    gain = ctx.createGain()
+    gain.gain.value = 0.2
     src.buffer = sample
-    src.connect dst
+    src.connect(gain).connect(dst)
     src.start()
 
 last_beat_time = null
@@ -256,7 +259,7 @@ $(document).on "keydown", (ev) ->
         play_sample singing_sample
 
 ```
-let camera, scene, renderer, mesh, composer, bloomPass, material;
+let camera, scene, renderer, mesh, composer, bloomPass, material, wavePass;
 
 let isUserInteracting = false,
     onPointerDownMouseX = 0, onPointerDownMouseY = 0,
@@ -288,8 +291,8 @@ function init() {
 
     const texture = new THREE.TextureLoader().load( 'pano0006.jpg' );
     const texture_overlay = new THREE.TextureLoader().load( 'pano0006_paintings.png' );
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture_overlay.colorSpace = THREE.SRGBColorSpace;
+    //texture.colorSpace = THREE.SRGBColorSpace;
+    //texture_overlay.colorSpace = THREE.SRGBColorSpace;
     //const material = new THREE.MeshBasicMaterial( { map: texture } );
     
     material = new THREE.ShaderMaterial({
@@ -334,22 +337,94 @@ function init() {
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
-    renderer.toneMapping = THREE.LinearToneMapping;
+    //renderer.outputEncoding = THREE.sRGBEncoding;
+    //renderer.outputEncoding = THREE.LinearEncoding
+    //renderer.toneMapping = THREE.NoToneMapping
+
+    //renderer.outputEncoding = THREE.sRGBEncoding
+    //renderer.toneMapping = THREE.LinearToneMapping;
     //renderer.toneMapping = THREE.ACESFilmicToneMapping;
     //renderer.toneMapping = THREE.ReinhardToneMapping;
     //renderer.toneMapping = THREE.CineonToneMapping;
-    renderer.toneMappingExposure = 3.0;
+    //renderer.toneMappingExposure = 3.0;
 
-    composer = new EffectComposer(renderer);
+    composer = new EffectComposer(renderer,
+        /*new THREE.WebGLRenderTarget(
+            window.innerWidth, window.innerHeight, {
+            format: THREE.RGBAFormat,
+            type: THREE.HalfFloatType
+            //encoding: THREE.LinearEncoding
+            })
+            */
+    );
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
+
+    const WaveDistortionShader = {
+        uniforms: {
+            tDiffuse: { value: null },
+            time: { value: 0.0 },
+            frequency: { value: new THREE.Vector2(10.0, 5.0) }, // Number of waves
+            amplitude: { value: new THREE.Vector2(0.2, 0.2) }, // Strength of distortion
+            speed: { value: 5.0 }, // Speed of animation
+            rgbOffset: { value: new THREE.Vector3(0.1, 0.2, 0.3) } // Different shifts for R, G, B
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform sampler2D tDiffuse;
+            uniform float time;
+            uniform vec2 frequency;
+            uniform vec2 amplitude;
+            uniform vec3 rgbOffset;
+            uniform float speed;
+            varying vec2 vUv;
+
+            vec3 linearToSRGB(vec3 color) {
+                return pow(color, vec3(1.0 / 2.2)); // Convert linear back to sRGB
+            }
+
+
+            void main() {
+                vec3 wave = sin(vUv.y * frequency.x + time*speed + rgbOffset) * amplitude.x;
+                vec3 wave2 = cos(vUv.x * frequency.y + time * 1.5*speed + rgbOffset) * amplitude.y;
+
+                vec2 rOffset = vec2(wave.r * rgbOffset.r, wave2.r * rgbOffset.r);
+                vec2 gOffset = vec2(wave.g * rgbOffset.g, wave2.g * rgbOffset.g);
+                vec2 bOffset = vec2(wave.b * rgbOffset.b, wave2.b * rgbOffset.b);
+
+                vec4 rColor = texture2D(tDiffuse, vUv + rOffset);
+                vec4 gColor = texture2D(tDiffuse, vUv + gOffset);
+                vec4 bColor = texture2D(tDiffuse, vUv + bOffset);
+
+                gl_FragColor = vec4(rColor.r, gColor.g, bColor.b, 1.0);
+                
+            }
+        `
+    };
+
+    
+    
+
+    bloomPass = new UnrealBloomPass(undefined, 1.5, 0.4, 0.2)
+    bloomPass.renderToScreen = false
+    composer.addPass(bloomPass)
+
+    wavePass = new ShaderPass(WaveDistortionShader);
+    wavePass.needsSwap = true
+    composer.addPass(wavePass);
 
     const afterimagePass = new AfterimagePass();
     afterimagePass.uniforms['damp'].value = 0.9; // Adjust between 0 (no blur) to 1 (strong blur)
     composer.addPass(afterimagePass);
+    
 
-    bloomPass = new UnrealBloomPass(undefined)//, 1.5, 0.4, 0.85)
-    composer.addPass(bloomPass)
+    //composer.addPass(new OutputPass());
     
     container.appendChild( renderer.domElement );
 
@@ -526,7 +601,6 @@ function update(dt) {
     cumEnergy += energy
     
     let scale = 1 + Math.sin(time*2*Math.PI)*0.5
-    console.log(scale)
     mesh.scale.set(scale, scale, scale)
     **/
 
@@ -576,7 +650,7 @@ function update(dt) {
     let bloom_freq = 1/(listener_position*2/speed_of_sound)/4
     bloom_phase += (bloom_freq*Math.PI*2)*dt
     bloom_phase = bloom_phase%(2*Math.PI*2)
-    bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*5
+    bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*0.7
     //bloomPass.strength = scale2**4*mean**4*5
 
     camera.fov = FOV - rattle
@@ -586,6 +660,10 @@ function update(dt) {
     //sway_amp *= (1 + scale2**4)*2
     
     material.uniforms.blendFactor.value = scale2**20
+
+    wavePass.uniforms.time.value = time
+    let waveAmp = scale2**100*0.5
+    wavePass.uniforms.amplitude.value = new THREE.Vector2(waveAmp, waveAmp)
     
     $("#distance_value").text((scale2**4).toFixed(1))
     
