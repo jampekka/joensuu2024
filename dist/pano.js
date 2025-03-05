@@ -59415,11 +59415,10 @@ void main() {
           vec4 color1 = texture2D(texture1, vUv);
           vec4 color2 = texture2D(texture2, vUv);
           
-          // Additive blending
-          vec4 blendedColor = color1 + color2 * blendFactor;
-          blendedColor.a = 1.0; // Ensure alpha is valid
-          
+          //vec4 blendedColor = color1 + color2 * blendFactor;
+          vec4 blendedColor = mix(color1*(1.0 - pow(blendFactor, 5.0)), color2 + blendFactor*0.2, color2.a*blendFactor);
           gl_FragColor = blendedColor;
+          gl_FragColor.a = 1.0;
         }
       `,
             transparent: true
@@ -59494,7 +59493,7 @@ void main() {
             }
         `
           };
-          bloomPass = new UnrealBloomPass2(void 0, 1.5, 0.4, 0.2);
+          bloomPass = new UnrealBloomPass2(void 0, 1.5, 0.4, 0.3);
           bloomPass.renderToScreen = false;
           composer.addPass(bloomPass);
           wavePass = new ShaderPass2(WaveDistortionShader);
@@ -59635,11 +59634,11 @@ void main() {
           let bloom_freq = 1 / (listener_position * 2 / speed_of_sound) / 4;
           bloom_phase += bloom_freq * Math.PI * 2 * dt;
           bloom_phase = bloom_phase % (2 * Math.PI * 2);
-          bloomPass.strength = (scale2 ** 3 * (0.8 + 0.2 * (Math.sin(bloom_phase) + 1) / 2)) ** 2 * 0.7;
+          bloomPass.strength = (scale2 ** 3 * (0.8 + 0.2 * (Math.sin(bloom_phase) + 1) / 2)) ** 2 * 0.6;
           camera.fov = FOV - rattle;
           camera.updateProjectionMatrix();
           let sway_amp = THREE.MathUtils.degToRad(0.5);
-          material.uniforms.blendFactor.value = scale2 ** 20;
+          material.uniforms.blendFactor.value = scale2 ** 10;
           wavePass.uniforms.time.value = time;
           let waveAmp = scale2 ** 100 * 0.5;
           wavePass.uniforms.amplitude.value = new THREE.Vector2(waveAmp, waveAmp);

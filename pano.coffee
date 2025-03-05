@@ -318,11 +318,10 @@ function init() {
           vec4 color1 = texture2D(texture1, vUv);
           vec4 color2 = texture2D(texture2, vUv);
           
-          // Additive blending
-          vec4 blendedColor = color1 + color2 * blendFactor;
-          blendedColor.a = 1.0; // Ensure alpha is valid
-          
+          //vec4 blendedColor = color1 + color2 * blendFactor;
+          vec4 blendedColor = mix(color1*(1.0 - pow(blendFactor, 5.0)), color2 + blendFactor*0.2, color2.a*blendFactor);
           gl_FragColor = blendedColor;
+          gl_FragColor.a = 1.0;
         }
       \`,
       transparent: true // Allow transparency
@@ -346,7 +345,7 @@ function init() {
     //renderer.toneMapping = THREE.ACESFilmicToneMapping;
     //renderer.toneMapping = THREE.ReinhardToneMapping;
     //renderer.toneMapping = THREE.CineonToneMapping;
-    //renderer.toneMappingExposure = 3.0;
+    //renderer.toneMappingExposure = 5.0;
 
     composer = new EffectComposer(renderer,
         /*new THREE.WebGLRenderTarget(
@@ -411,7 +410,7 @@ function init() {
     
     
 
-    bloomPass = new UnrealBloomPass(undefined, 1.5, 0.4, 0.2)
+    bloomPass = new UnrealBloomPass(undefined, 1.5, 0.4, 0.3)
     bloomPass.renderToScreen = false
     composer.addPass(bloomPass)
 
@@ -641,7 +640,7 @@ function update(dt) {
     
     //let rattle = scale
     rattle_phase += (scale2**4*20*Math.PI*2)*dt
-    //let rattle = Math.sin(time*2*Math.PI*23)*(scale**4)*0.25 + scale*0.5 + scale2**4*25 //*scale*0.5
+    //let rattle = Math.sin(time*2*Math.PI*23)*(scale**4)*0.25 + scale*0.5 + scale2**4*25 //*scale*0.2
     let rattle = Math.sin(rattle_phase)*scale2**20*0.6 + scale*0.5 //+ scale2**4*30 //*scale*0.5
     
     // TODO: Heartbeat-like pulse
@@ -650,7 +649,7 @@ function update(dt) {
     let bloom_freq = 1/(listener_position*2/speed_of_sound)/4
     bloom_phase += (bloom_freq*Math.PI*2)*dt
     bloom_phase = bloom_phase%(2*Math.PI*2)
-    bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*0.7
+    bloomPass.strength = (scale2**3*(0.8 + 0.2*(Math.sin(bloom_phase) + 1)/2))**2*0.6
     //bloomPass.strength = scale2**4*mean**4*5
 
     camera.fov = FOV - rattle
@@ -659,7 +658,7 @@ function update(dt) {
     let sway_amp = THREE.MathUtils.degToRad(0.5);
     //sway_amp *= (1 + scale2**4)*2
     
-    material.uniforms.blendFactor.value = scale2**20
+    material.uniforms.blendFactor.value = scale2**10
 
     wavePass.uniforms.time.value = time
     let waveAmp = scale2**100*0.5
